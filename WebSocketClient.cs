@@ -83,11 +83,11 @@ namespace SidexisConnector
             connector.DateOfCall = (DateTime.Now).ToString("dd.MM.yyyy");
             connector.TimeOfCall = (DateTime.Now).ToString("HH:mm:ss");
             connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
-            connector.Receiver = connector.CreateReceiverAddress(Environment.MachineName, "SIDEXIS");
+            connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.ImageNumber = "1";
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.A);
         }
-        
+
         // TBD:
         // token U: update patient data (only used when data changes are detected)
         // image-related tokens

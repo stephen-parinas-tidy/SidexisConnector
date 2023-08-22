@@ -48,7 +48,7 @@ namespace SidexisConnector
         {
             try
             {
-                Process.Start(SidexisPath); 
+                Process.Start(SidexisPath);
                 Console.WriteLine("Sidexis has been opened");
             }
             catch (Exception e)

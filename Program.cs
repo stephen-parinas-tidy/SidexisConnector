@@ -15,14 +15,22 @@ namespace SidexisConnector
             
             // Create WebSocket server and receive patient data
             WsClient = new WebSocketClient();
-            if (await WsClient.ConnectAsync("ws://localhost:37319/ws"))
+            if (await WsClient.ConnectAsync("ws://localhost:4200/ng-cli-ws"))
             {
-                // Process patient data then close server
-                await WsClient.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
-                await WsClient.CloseAsync();
+                try
+                {
+                    // Process patient data then close server
+                    await WsClient.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
+                    await WsClient.CloseAsync();
+
+                    // Launch Sidexis
+                    AppData.TaskSwitch();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+                }
                 
-                // Launch Sidexis
-                AppData.TaskSwitch();
             }
             //Console.WriteLine("Press any key to exit");
             //Console.ReadKey();

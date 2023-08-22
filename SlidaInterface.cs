@@ -56,7 +56,7 @@ namespace SidexisConnector
             }
             catch (Exception e)
             {
-                Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
+                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
             }
         }
     }
