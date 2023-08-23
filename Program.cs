@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Net;
+using System.Net.WebSockets;
 using System.Threading.Tasks;
 
 namespace SidexisConnector
@@ -7,33 +9,41 @@ namespace SidexisConnector
     {
         private static ProgramData AppData { get; set; }
         
-        private static WebSocketClient WsClient { get; set; }
+        private static WebSocketServer WsServer { get; set; }
 
         public static async Task Main(string[] args)
         {
             AppData = new ProgramData();
             
             // Create WebSocket server and receive patient data
-            WsClient = new WebSocketClient();
-            if (await WsClient.ConnectAsync("ws://localhost:4200/ng-cli-ws"))
-            {
-                try
-                {
-                    // Process patient data then close server
-                    await WsClient.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
-                    await WsClient.CloseAsync();
+            HttpListener listener = new HttpListener();
+            listener.Prefixes.Add("http://localhost:37319/");
+            listener.Start();
 
-                    // Launch Sidexis
-                    AppData.TaskSwitch();
-                }
-                catch (Exception e)
+            Console.WriteLine("WebSocket server is listening...");
+
+            while (true)
+            {
+                HttpListenerContext context = await listener.GetContextAsync();
+                if (context.Request.IsWebSocketRequest)
                 {
-                    Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+                    var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
+                    Console.WriteLine("TidyClinic client has connected to the server.");
+                    
+                    WsServer = new WebSocketServer(ws);
+                    await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
+                    await WsServer.CloseAsync();
+                    Console.WriteLine("TidyClinic client has disconnected from the server.");
+                    
+                    AppData.TaskSwitch();
+                    break;
                 }
-                
+                else
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.Close();
+                }
             }
-            //Console.WriteLine("Press any key to exit");
-            //Console.ReadKey();
         }
     }
 }

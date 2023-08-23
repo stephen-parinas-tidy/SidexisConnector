@@ -49,11 +49,11 @@ namespace SidexisConnector
             try
             {
                 Process.Start(SidexisPath);
-                Console.WriteLine("Sidexis has been opened");
+                Console.WriteLine("Sidexis has been opened!");
             }
             catch (Exception e)
             {
-                Console.WriteLine("Error starting Sidexis");
+                Console.WriteLine("Error starting Sidexis.");
                 Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
             }
         }

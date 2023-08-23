@@ -8,28 +8,13 @@ using Newtonsoft.Json;
 
 namespace SidexisConnector
 {
-    public class WebSocketClient
+    public class WebSocketServer
     {
-        private readonly ClientWebSocket _webSocket;
+        private readonly WebSocket _webSocket;
 
-        public WebSocketClient()
+        public WebSocketServer(WebSocket webSocket)
         {
-            _webSocket = new ClientWebSocket();
-        }
-
-        public async Task<Boolean> ConnectAsync(string uri)
-        {
-            try
-            {
-                await _webSocket.ConnectAsync(new Uri(uri), CancellationToken.None);
-                Console.WriteLine("Connected to WebSocket server");
-                return true;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
-                return false;
-            }
+            _webSocket = webSocket;
         }
 
         public async Task ReceivePatientDataAsync(SidexisConnectorModel connector, String filename)
@@ -44,18 +29,19 @@ namespace SidexisConnector
                     break;
                 }
                 
+                Console.WriteLine("Patient data has been received.");
                 var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                Console.WriteLine(message);
                 var patient = JsonConvert.DeserializeObject<SidexisPatient>(message);
                 ProcessTokenN(connector, patient, filename);
                 ProcessTokenA(connector, patient, filename);
-                Console.WriteLine("Patient data has been processed");
+                Console.WriteLine("Patient data has been sent to Sidexis.");
             }
         }
 
         public async Task CloseAsync()
         {
             await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            Console.WriteLine("Closed WebSocket connection");
         }
 
         private static void ProcessTokenN(SidexisConnectorModel connector, SidexisPatient patient, string filename)
@@ -64,8 +50,8 @@ namespace SidexisConnector
             connector.LastNameNew = patient.LastName;
             connector.FirstNameNew = patient.FirstName;
             connector.DateOfBirthNew = patient.DateOfBirth;
-            connector.ExtCardIndexNew = patient.ExtCardIndex;
-            connector.SexNew = patient.Sex;
+            connector.ExtCardIndexNew = patient.Code;
+            connector.SexNew = patient.Gender;
             connector.PermanentDentistNew = "TOMS";     // may need to change this
             connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
@@ -78,7 +64,7 @@ namespace SidexisConnector
             connector.LastName = patient.LastName;
             connector.FirstName = patient.FirstName;
             connector.DateOfBirth = patient.DateOfBirth;
-            connector.ExtCardIndex = patient.ExtCardIndex;
+            connector.ExtCardIndex = patient.Code;
             connector.StationName = Environment.MachineName;
             connector.DateOfCall = (DateTime.Now).ToString("dd.MM.yyyy");
             connector.TimeOfCall = (DateTime.Now).ToString("HH:mm:ss");
@@ -100,7 +86,7 @@ namespace SidexisConnector
         public string LastName { get; set; }
         public string FirstName { get; set; }
         public string DateOfBirth { get; set; }
-        public string ExtCardIndex { get; set; }
-        public string Sex { get; set; }
+        public string Code { get; set; }
+        public string Gender { get; set; }
     }
 }
