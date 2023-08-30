@@ -5,7 +5,7 @@ using System.Text;
 
 namespace SidexisConnector
 {
-    public class SlidaInterface
+    public static class SlidaInterface
     {
         public static byte[] GenerateMessage(char tokenType, List<string> tokenInfo)
         {

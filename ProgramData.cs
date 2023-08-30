@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
+using Microsoft.Win32;
 using NGOptMan;
 
 namespace SidexisConnector
 {
     public class ProgramData
     {
-        public string SidexisPath { get; set; }
+        private string ProgramPath { get; set; }
+        private string SidexisPath { get; set; }
         public string SlidaPath { get; set; }
-        public string ProgramPath { get; set; }
-        
+
         public SidexisConnectorModel Connector { get; set; }
 
         public ProgramData()
@@ -20,8 +20,17 @@ namespace SidexisConnector
             Connector = new SidexisConnectorModel();
             SidexisPath = string.Empty;
             SlidaPath = string.Empty;
-            ProgramPath = Assembly.GetExecutingAssembly().Location;
-        
+            ProgramPath = typeof(Program).Assembly.Location;
+
+            // Register custom URI scheme of application if it does not exist
+            string customProtocol = "SidexisConnector";
+            var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
+            if (regKey == null)
+            {
+                RegisterUriScheme(customProtocol);
+            }
+            regKey.Close();
+
             // Retrieve Sidexis installation and Slida mailslot file path
             try
             {
@@ -55,6 +64,29 @@ namespace SidexisConnector
             {
                 Console.WriteLine("Error starting Sidexis.");
                 Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
+            }
+        }
+
+        private void RegisterUriScheme(string uriScheme)
+        {
+            using (var key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme))
+            {
+                key.SetValue("", "URL:SidexisConnector Protocol");
+                key.SetValue("URL Protocol", "");
+
+                using (var defaultIcon = key.CreateSubKey("DefaultIcon"))
+                {
+                    defaultIcon.SetValue("", ProgramPath + ",1");
+                    defaultIcon.Close();
+                }
+
+                using (var commandKey = key.CreateSubKey(@"shell\open\command"))
+                {
+                    commandKey.SetValue("", "\"" + ProgramPath + "\" \"%1\"");
+                    commandKey.Close();
+                }
+                
+                key.Close();
             }
         }
     }

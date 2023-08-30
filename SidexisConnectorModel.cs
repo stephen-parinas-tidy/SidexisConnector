@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace SidexisConnector
 {
@@ -149,7 +148,7 @@ namespace SidexisConnector
             ClearData();
         }
 
-        public void ClearData()
+        private void ClearData()
         {
             LastName = string.Empty;
             FirstName = string.Empty;
