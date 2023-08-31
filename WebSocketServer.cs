@@ -32,7 +32,9 @@ namespace SidexisConnector
                 Console.WriteLine("Patient data has been received.");
                 var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
                 var patient = JsonConvert.DeserializeObject<SidexisPatient>(message);
+                
                 ProcessTokenN(connector, patient, filename);
+                ProcessTokenU(connector, patient, filename);
                 ProcessTokenA(connector, patient, filename);
                 Console.WriteLine("Patient data has been sent to Sidexis.");
             }
@@ -56,6 +58,24 @@ namespace SidexisConnector
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.N);
         }
+
+        private static void ProcessTokenU(SidexisConnectorModel connector, SidexisPatient patient, string filename)
+        {
+            // Update patient data
+            connector.LastName = patient.LastName;
+            connector.FirstName = patient.FirstName;
+            connector.DateOfBirth = patient.DateOfBirth;
+            connector.ExtCardIndex = patient.ExtCardIndex;
+            connector.LastNameNew = patient.LastName;
+            connector.FirstNameNew = patient.FirstName;
+            connector.DateOfBirthNew = patient.DateOfBirth;
+            connector.ExtCardIndexNew = patient.ExtCardIndex;
+            connector.SexNew = patient.Sex;
+            connector.PermanentDentistNew = "TOMS";     // may need to change this
+            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
+            connector.SendData(filename, SidexisConnectorModel.SlidaTokens.U);
+        }
         
         private static void ProcessTokenA(SidexisConnectorModel connector, SidexisPatient patient, string filename)
         {
@@ -69,12 +89,11 @@ namespace SidexisConnector
             connector.TimeOfCall = (DateTime.Now).ToString("HH:mm:ss");
             connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
-            connector.ImageNumber = "1";
+            connector.ImageNumber = "";
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.A);
         }
 
         // TBD:
-        // token U: update patient data (only used when data changes are detected)
         // image-related tokens
     }
 
