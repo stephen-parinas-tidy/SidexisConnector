@@ -29,7 +29,11 @@ namespace SidexisConnector
             {
                 RegisterUriScheme(customProtocol);
             }
-            regKey.Close();
+            else
+            {
+                regKey.Close();
+            }
+            
 
             // Retrieve Sidexis installation and Slida mailslot file path
             try
@@ -63,7 +67,7 @@ namespace SidexisConnector
             catch (Exception e)
             {
                 Console.WriteLine("Error starting Sidexis.");
-                Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
+                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
             }
         }
 

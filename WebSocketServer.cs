@@ -54,7 +54,7 @@ namespace SidexisConnector
             connector.ExtCardIndexNew = patient.ExtCardIndex;
             connector.SexNew = patient.Sex;
             connector.PermanentDentistNew = "TOMS";     // may need to change this
-            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.N);
         }
@@ -72,7 +72,7 @@ namespace SidexisConnector
             connector.ExtCardIndexNew = patient.ExtCardIndex;
             connector.SexNew = patient.Sex;
             connector.PermanentDentistNew = "TOMS";     // may need to change this
-            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.U);
         }
@@ -87,7 +87,7 @@ namespace SidexisConnector
             connector.StationName = Environment.MachineName;
             connector.DateOfCall = (DateTime.Now).ToString("dd.MM.yyyy");
             connector.TimeOfCall = (DateTime.Now).ToString("HH:mm:ss");
-            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.ImageNumber = "";
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.A);

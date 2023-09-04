@@ -15,33 +15,39 @@ namespace SidexisConnector
             AppData = new ProgramData();
             
             // Create WebSocket server and receive patient data
-            HttpListener listener = new HttpListener();
-            listener.Prefixes.Add("http://localhost:37319/");
-            listener.Start();
-
-            Console.WriteLine("WebSocket server is listening...");
-
-            while (true)
+            try
             {
-                HttpListenerContext context = await listener.GetContextAsync();
-                if (context.Request.IsWebSocketRequest)
+                HttpListener listener = new HttpListener();
+                listener.Prefixes.Add("http://localhost:37319/");
+                listener.Start();
+                Console.WriteLine("WebSocket server is listening...");
+
+                while (true)
                 {
-                    var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
-                    Console.WriteLine("TidyClinic client has connected to the server.");
-                    
-                    WsServer = new WebSocketServer(ws);
-                    await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
-                    await WsServer.CloseAsync();
-                    Console.WriteLine("TidyClinic client has disconnected from the server.");
-                    
-                    AppData.TaskSwitch();
-                    break;
+                    HttpListenerContext context = await listener.GetContextAsync();
+                    if (context.Request.IsWebSocketRequest)
+                    {
+                        var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
+                        Console.WriteLine("TidyClinic client has connected to the server.");
+
+                        WsServer = new WebSocketServer(ws);
+                        await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
+                        await WsServer.CloseAsync();
+                        Console.WriteLine("TidyClinic client has disconnected from the server.");
+
+                        AppData.TaskSwitch();
+                        break;
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = 400;
+                        context.Response.Close();
+                    }
                 }
-                else
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.Close();
-                }
+            }
+            catch (HttpListenerException e)
+            {
+                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
             }
         }
     }
