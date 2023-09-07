@@ -53,7 +53,7 @@ namespace SidexisConnector
             connector.DateOfBirthNew = patient.DateOfBirth;
             connector.ExtCardIndexNew = patient.ExtCardIndex;
             connector.SexNew = patient.Sex;
-            connector.PermanentDentistNew = "TOMS";     // may need to change this
+            connector.PermanentDentistNew = "TOMS";
             connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.N);
@@ -71,7 +71,7 @@ namespace SidexisConnector
             connector.DateOfBirthNew = patient.DateOfBirth;
             connector.ExtCardIndexNew = patient.ExtCardIndex;
             connector.SexNew = patient.Sex;
-            connector.PermanentDentistNew = "TOMS";     // may need to change this
+            connector.PermanentDentistNew = "TOMS";
             connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.U);
@@ -79,7 +79,7 @@ namespace SidexisConnector
         
         private static void ProcessTokenA(SidexisConnectorModel connector, SidexisPatient patient, string filename)
         {
-            // Open patient in Sidexis, and most recent image if it exists
+            // Open patient in Sidexis
             connector.LastName = patient.LastName;
             connector.FirstName = patient.FirstName;
             connector.DateOfBirth = patient.DateOfBirth;

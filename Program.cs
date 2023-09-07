@@ -28,12 +28,12 @@ namespace SidexisConnector
                     if (context.Request.IsWebSocketRequest)
                     {
                         var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
-                        Console.WriteLine("TidyClinic client has connected to the server.");
+                        Console.WriteLine("Connected to the server.");
 
                         WsServer = new WebSocketServer(ws);
                         await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
                         await WsServer.CloseAsync();
-                        Console.WriteLine("TidyClinic client has disconnected from the server.");
+                        Console.WriteLine("Disconnected from the server.");
 
                         AppData.TaskSwitch();
                         break;

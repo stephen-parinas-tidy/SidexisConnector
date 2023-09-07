@@ -170,7 +170,9 @@ namespace SidexisConnector
 
             ImageNumber = string.Empty;
         }
-
+        
+        # region processPatientData
+        
         private string ProcessName(string text)
         {
             // Cannot have '@' symbol or leading/trailing spaces
@@ -244,5 +246,7 @@ namespace SidexisConnector
             }
             return $"\\\\{stationName}\\{appName}";
         }
+        
+        # endregion
     }
 }

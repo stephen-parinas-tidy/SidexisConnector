@@ -23,17 +23,32 @@ namespace SidexisConnector
             ProgramPath = typeof(Program).Assembly.Location;
 
             // Register custom URI scheme of application if it does not exist
-            string customProtocol = "SidexisConnector";
+            # if DEBUG
+                string customProtocol = "SidexisConnectorDebug";
+            # else
+                string customProtocol = "SidexisConnector";
+            # endif
+            
             var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
             if (regKey == null)
             {
+                // First time registering app
                 RegisterUriScheme(customProtocol);
+                Environment.Exit(0);
             }
             else
             {
-                regKey.Close();
+                // If file location has changed, register new location
+                var subKey = regKey.OpenSubKey("DefaultIcon");
+                var subKeyValue = subKey.GetValue("", "");
+                if (!((string)subKeyValue).Contains(ProgramPath))
+                {
+                    RegisterUriScheme(customProtocol);
+                    Environment.Exit(0);
+                }
+                subKey.Close();
             }
-            
+            regKey.Close();
 
             // Retrieve Sidexis installation and Slida mailslot file path
             try
@@ -42,7 +57,7 @@ namespace SidexisConnector
 
                 if (SidexisPath == string.Empty)
                 {
-                    SidexisPath = optMan.GetOption("SidexisPath", ""); // Always includes trailing backslash
+                    SidexisPath = optMan.GetOption("SidexisPath", "");
                     SidexisPath = Path.Combine(SidexisPath, "Sidexis.exe");
                 }
 
@@ -75,7 +90,7 @@ namespace SidexisConnector
         {
             using (var key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme))
             {
-                key.SetValue("", "URL:SidexisConnector Protocol");
+                key.SetValue("", "URL:"+ uriScheme + " Protocol");
                 key.SetValue("URL Protocol", "");
 
                 using (var defaultIcon = key.CreateSubKey("DefaultIcon"))
