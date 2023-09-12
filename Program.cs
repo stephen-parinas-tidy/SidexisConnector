@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Net;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SidexisConnector
@@ -22,32 +24,61 @@ namespace SidexisConnector
                 listener.Start();
                 Console.WriteLine("WebSocket server is listening...");
 
-                while (true)
+                try
                 {
-                    HttpListenerContext context = await listener.GetContextAsync();
-                    if (context.Request.IsWebSocketRequest)
+                    var contextTask = listener.GetContextAsync();
+                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+                    await Task.WhenAny(contextTask, timeoutTask);
+
+                    if (contextTask.IsCompleted)
                     {
-                        var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
-                        Console.WriteLine("Connected to the server.");
-
-                        WsServer = new WebSocketServer(ws);
-                        await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
-                        await WsServer.CloseAsync();
-                        Console.WriteLine("Disconnected from the server.");
-
-                        AppData.TaskSwitch();
-                        break;
+                        HttpListenerContext context = await contextTask;
+                        await HandleWebSocketRequest(context);
                     }
                     else
                     {
-                        context.Response.StatusCode = 400;
-                        context.Response.Close();
+                        throw new TimeoutException("WebSocket server timed out after 10 seconds.");
+                    }
+                }
+                catch (TimeoutException e)
+                {
+                    Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+                }
+                finally
+                {
+                    // Stop listening to the localhost port with the WebSocket server
+                    if (listener.IsListening)
+                    {
+                        listener.Stop();
+                        Console.WriteLine("WebSocket server has stopped listening...");
                     }
                 }
             }
+
             catch (HttpListenerException e)
             {
                 Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+            }
+        }
+
+        private static async Task HandleWebSocketRequest(HttpListenerContext context)
+        {
+            if (context.Request.IsWebSocketRequest)
+            {
+                var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
+                Console.WriteLine("Connected to the server.");
+
+                WsServer = new WebSocketServer(ws);
+                await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
+                await WsServer.CloseAsync();
+                Console.WriteLine("Disconnected from the server.");
+
+                AppData.TaskSwitch();
+            }
+            else
+            {
+                context.Response.StatusCode = 400;
+                context.Response.Close();
             }
         }
     }

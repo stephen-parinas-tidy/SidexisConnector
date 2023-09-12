@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
@@ -54,8 +55,8 @@ namespace SidexisConnector
             connector.ExtCardIndexNew = patient.ExtCardIndex;
             connector.SexNew = patient.Sex;
             connector.PermanentDentistNew = "TOMS";
-            connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
-            connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
+            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Receiver = connector.CreateReceiverAddress(Environment.MachineName, "PDATA");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.N);
         }
 
@@ -72,8 +73,8 @@ namespace SidexisConnector
             connector.ExtCardIndexNew = patient.ExtCardIndex;
             connector.SexNew = patient.Sex;
             connector.PermanentDentistNew = "TOMS";
-            connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
-            connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
+            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Receiver = connector.CreateReceiverAddress(Environment.MachineName, "PDATA");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.U);
         }
         
@@ -87,8 +88,8 @@ namespace SidexisConnector
             connector.StationName = Environment.MachineName;
             connector.DateOfCall = (DateTime.Now).ToString("dd.MM.yyyy");
             connector.TimeOfCall = (DateTime.Now).ToString("HH:mm:ss");
-            connector.Sender = connector.CreateSenderAddress(Environment.UserName, "TidyClinic");
-            connector.Receiver = connector.CreateReceiverAddress("*", "SIDEXIS");
+            connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
+            connector.Receiver = connector.CreateReceiverAddress(Environment.MachineName, "PDATA");
             connector.ImageNumber = "";
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.A);
         }

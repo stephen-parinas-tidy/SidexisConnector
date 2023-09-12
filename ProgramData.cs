@@ -88,6 +88,7 @@ namespace SidexisConnector
 
         private void RegisterUriScheme(string uriScheme)
         {
+            Console.WriteLine("Registering '" + uriScheme + "://' URI");
             using (var key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme))
             {
                 key.SetValue("", "URL:"+ uriScheme + " Protocol");
