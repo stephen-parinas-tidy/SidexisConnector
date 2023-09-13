@@ -9,7 +9,7 @@ namespace SidexisConnector
     public class ProgramData
     {
         private string ProgramPath { get; set; }
-        private string SidexisPath { get; set; }
+        public string SidexisPath { get; set; }
         public string SlidaPath { get; set; }
 
         public SidexisConnectorModel Connector { get; set; }
@@ -69,20 +69,6 @@ namespace SidexisConnector
             catch (Exception e)
             {
                 Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
-            }
-        }
-        
-        public void TaskSwitch()
-        {
-            try
-            {
-                Process.Start(SidexisPath);
-                Console.WriteLine("Sidexis has been opened!");
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Error starting Sidexis.");
-                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
             }
         }
 

@@ -13,32 +13,38 @@ namespace SidexisConnector
     {
         private readonly WebSocket _webSocket;
 
+        public string PatientDataStatus { get; set; }
+
         public WebSocketServer(WebSocket webSocket)
         {
             _webSocket = webSocket;
+            PatientDataStatus = string.Empty;
         }
 
         public async Task ReceivePatientDataAsync(SidexisConnectorModel connector, String filename)
         {
             var buffer = new byte[1024];
-            while (_webSocket.State == WebSocketState.Open || _webSocket.State == WebSocketState.CloseSent)
+            if (_webSocket.State == WebSocketState.Open || _webSocket.State == WebSocketState.CloseSent)
             {
                 var result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-                if (result.MessageType == WebSocketMessageType.Close)
+                if (result.MessageType != WebSocketMessageType.Close)
                 {
-                    break;
+                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    var patient = JsonConvert.DeserializeObject<SidexisPatient>(message);
+                
+                    ProcessTokenN(connector, patient, filename);
+                    ProcessTokenU(connector, patient, filename);
+                    ProcessTokenA(connector, patient, filename);
                 }
-                
-                Console.WriteLine("Patient data has been received.");
-                var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                var patient = JsonConvert.DeserializeObject<SidexisPatient>(message);
-                
-                ProcessTokenN(connector, patient, filename);
-                ProcessTokenU(connector, patient, filename);
-                ProcessTokenA(connector, patient, filename);
-                Console.WriteLine("Patient data has been sent to Sidexis.");
             }
+        }
+
+        public async Task SendStatusAsync()
+        {
+            var bytes = Encoding.UTF8.GetBytes(PatientDataStatus);
+            var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
+            await _webSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
         public async Task CloseAsync()
