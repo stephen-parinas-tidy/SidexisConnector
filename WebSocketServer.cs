@@ -58,9 +58,9 @@ namespace SidexisConnector
             connector.LastNameNew = patient.LastName;
             connector.FirstNameNew = patient.FirstName;
             connector.DateOfBirthNew = patient.DateOfBirth;
-            connector.ExtCardIndexNew = patient.ExtCardIndex;
+            connector.ExtCardIndexNew = patient.Code;
             connector.SexNew = patient.Sex;
-            connector.PermanentDentistNew = "TOMS";
+            connector.PermanentDentistNew = patient.PreferredDoctor;
             connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress(Environment.MachineName, "PDATA");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.N);
@@ -72,13 +72,13 @@ namespace SidexisConnector
             connector.LastName = patient.LastName;
             connector.FirstName = patient.FirstName;
             connector.DateOfBirth = patient.DateOfBirth;
-            connector.ExtCardIndex = patient.ExtCardIndex;
+            connector.ExtCardIndex = patient.Code;
             connector.LastNameNew = patient.LastName;
             connector.FirstNameNew = patient.FirstName;
             connector.DateOfBirthNew = patient.DateOfBirth;
-            connector.ExtCardIndexNew = patient.ExtCardIndex;
+            connector.ExtCardIndexNew = patient.Code;
             connector.SexNew = patient.Sex;
-            connector.PermanentDentistNew = "TOMS";
+            connector.PermanentDentistNew = patient.PreferredDoctor;
             connector.Sender = connector.CreateSenderAddress(Environment.MachineName, "TidyClinic");
             connector.Receiver = connector.CreateReceiverAddress(Environment.MachineName, "PDATA");
             connector.SendData(filename, SidexisConnectorModel.SlidaTokens.U);
@@ -90,7 +90,7 @@ namespace SidexisConnector
             connector.LastName = patient.LastName;
             connector.FirstName = patient.FirstName;
             connector.DateOfBirth = patient.DateOfBirth;
-            connector.ExtCardIndex = patient.ExtCardIndex;
+            connector.ExtCardIndex = patient.Code;
             connector.StationName = Environment.MachineName;
             connector.DateOfCall = (DateTime.Now).ToString("dd.MM.yyyy");
             connector.TimeOfCall = (DateTime.Now).ToString("HH:mm:ss");
@@ -109,7 +109,8 @@ namespace SidexisConnector
         public string LastName { get; set; }
         public string FirstName { get; set; }
         public string DateOfBirth { get; set; }
-        public string ExtCardIndex { get; set; }
+        public string Code { get; set; }
         public string Sex { get; set; }
+        public string PreferredDoctor { get; set; }
     }
 }
