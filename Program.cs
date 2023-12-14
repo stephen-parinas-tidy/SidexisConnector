@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
-using System.Threading;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace SidexisConnector
@@ -133,11 +133,26 @@ namespace SidexisConnector
 
                 if (windowProcessId == targetProcess.Id && WindowsApi.IsWindowVisible(hWnd))
                 {
-                    WindowsApi.SendMessage(hWnd, 0x0010, IntPtr.Zero, IntPtr.Zero);
+                    string windowTitle = GetWindowTitle(hWnd);
+                    if (!string.IsNullOrEmpty(windowTitle) && !windowTitle.ToLower().Contains("sidexis xg"))
+                    {
+                        WindowsApi.SendMessage(hWnd, 0x0010, IntPtr.Zero, IntPtr.Zero);
+                    }
                 }
 
                 return true;
             }, 0);
+        }
+        
+        private static string GetWindowTitle(IntPtr hWnd)
+        {
+            const int nChars = 256;
+            StringBuilder sb = new StringBuilder(nChars);
+            if (WindowsApi.GetWindowText(hWnd, sb, nChars) > 0)
+            {
+                return sb.ToString();
+            }
+            return null;
         }
     }
 
@@ -158,6 +173,9 @@ namespace SidexisConnector
 
         [DllImport("user32.dll")]
         public static extern int SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+        
+        [DllImport("user32.dll")]
+        public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
         
         public delegate bool EnumWindowsProc(IntPtr hWnd, int lParam);
     }
