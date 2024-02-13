@@ -11,16 +11,30 @@ namespace SidexisConnector
         private string ProgramPath { get; set; }
         public string SidexisPath { get; set; }
         public string SlidaPath { get; set; }
+        public string MessageFilePath { get; set; }
 
         public SidexisConnectorModel Connector { get; set; }
 
         public ProgramData()
         {
             // Initialise connector and file paths
-            Connector = new SidexisConnectorModel();
             SidexisPath = string.Empty;
             SlidaPath = string.Empty;
             ProgramPath = typeof(Program).Assembly.Location;
+            MessageFilePath = Path.Combine(Path.GetDirectoryName(ProgramPath) ?? string.Empty, "TidySidexisConnector.txt");
+            
+            if (!File.Exists(MessageFilePath))
+            {
+                // If the file doesn't exist, create it
+                File.Create(MessageFilePath).Close();
+                using (StreamWriter writer = File.AppendText(MessageFilePath))
+                {
+                    // Write timestamp and message to the file
+                    writer.WriteLine($"{DateTime.Now}: TidySidexisConnector.txt created");
+                }
+            }
+            
+            Connector = new SidexisConnectorModel(MessageFilePath);
 
             // Register custom URI scheme of application if it does not exist
             # if DEBUG
@@ -34,6 +48,7 @@ namespace SidexisConnector
             {
                 // First time registering app
                 RegisterUriScheme(customProtocol);
+                LogMessageToFile($"Registering '{customProtocol}://' URI");
                 Environment.Exit(0);
             }
             else
@@ -44,13 +59,14 @@ namespace SidexisConnector
                 if (!((string)subKeyValue).Contains(ProgramPath))
                 {
                     RegisterUriScheme(customProtocol);
+                    LogMessageToFile($"Registering new location for '{customProtocol}://' URI");
                     Environment.Exit(0);
                 }
                 subKey.Close();
             }
             regKey.Close();
 
-            // Retrieve Sidexis installation and Slida mailslot file path
+            // Retrieve Sidexis installation and Slida mail slot file path
             try
             {
                 var optMan = (IOptionsManager) Activator.CreateInstance(Type.GetTypeFromProgID("SIDEXISNG.OptionsManager"));
@@ -68,13 +84,12 @@ namespace SidexisConnector
             }
             catch (Exception e)
             {
-                Console.WriteLine($"An {e.GetType().Name} occurred: {e.Message}");
+                LogExceptionToFile(e);
             }
         }
 
         private void RegisterUriScheme(string uriScheme)
         {
-            Console.WriteLine("Registering '" + uriScheme + "://' URI");
             using (var key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme))
             {
                 key.SetValue("", "URL:"+ uriScheme + " Protocol");
@@ -93,6 +108,26 @@ namespace SidexisConnector
                 }
                 
                 key.Close();
+            }
+        }
+        
+        private void LogExceptionToFile(Exception ex)
+        {
+            // Create or append to the file
+            using (StreamWriter writer = File.AppendText(MessageFilePath))
+            {
+                // Write timestamp and error message to the file
+                writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
+            }
+        }
+        
+        private void LogMessageToFile(string message)
+        {
+            // Create or append to the file
+            using (StreamWriter writer = File.AppendText(MessageFilePath))
+            {
+                // Write timestamp and message to the file
+                writer.WriteLine($"{DateTime.Now}: {message}");
             }
         }
     }

@@ -103,14 +103,4 @@ namespace SidexisConnector
         // TBD:
         // image-related tokens
     }
-
-    public class SidexisPatient
-    {
-        public string LastName { get; set; }
-        public string FirstName { get; set; }
-        public string DateOfBirth { get; set; }
-        public string Code { get; set; }
-        public string Sex { get; set; }
-        public string PreferredDoctor { get; set; }
-    }
 }

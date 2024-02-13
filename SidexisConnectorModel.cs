@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace SidexisConnector
 {
     public class SidexisConnectorModel
     {
+        public string ErrorFilePath { get; set; }
+        
         public enum SlidaTokens
         {
             A, // Auto-select patient/image
@@ -64,8 +67,9 @@ namespace SidexisConnector
 
         #endregion
 
-        public SidexisConnectorModel()
+        public SidexisConnectorModel(string errorFilePath)
         {
+            ErrorFilePath = errorFilePath;
             ClearData();    // makes all attributes empty strings
         }
 
@@ -118,7 +122,7 @@ namespace SidexisConnector
                 case SlidaTokens.U:
                     if (DateOfBirthNew != DateOfBirth && (LastNameNew != LastName || FirstNameNew != FirstName))
                     {
-                        Console.WriteLine("Cannot update patient data: DateOfBirth and Name updated simultaneously");
+                        LogExceptionToFile("Cannot update patient data: DateOfBirth and Name updated simultaneously");
                     }
                     else
                     {
@@ -144,7 +148,14 @@ namespace SidexisConnector
             // Generate message and send it to the mailslot
             if (tokenData.Count <= 0) return;
             var mailslotMessage = SlidaInterface.GenerateMessage(tokenType.ToString()[0], tokenData);
-            SlidaInterface.SendMessage(mailslotFilename, mailslotMessage);
+            SlidaInterface.SendMessage(mailslotFilename, mailslotMessage, ErrorFilePath);
+            
+            using (StreamWriter writer = File.AppendText(ErrorFilePath))
+            {
+                // Write timestamp and error message to the file
+                writer.WriteLine($"{DateTime.Now}: Token {tokenType.ToString()[0]}: Patient {tokenData[0]} {tokenData[1]} {tokenData[2]}");
+            }
+            
             ClearData();
         }
 
@@ -169,6 +180,16 @@ namespace SidexisConnector
             Receiver = string.Empty;
 
             ImageNumber = string.Empty;
+        }
+        
+        private void LogExceptionToFile(string message)
+        {
+            // Create or append to the file
+            using (StreamWriter writer = File.AppendText(ErrorFilePath))
+            {
+                // Write timestamp and error message to the file
+                writer.WriteLine($"{DateTime.Now}: {message}");
+            }
         }
         
         # region processPatientData

@@ -42,7 +42,7 @@ namespace SidexisConnector
             return message;
         }
 
-        public static void SendMessage(string filename, byte[] message)
+        public static void SendMessage(string filename, byte[] message, string errorFilePath)
         {
             // Write message to .sdx file
             try
@@ -54,9 +54,13 @@ namespace SidexisConnector
                     fs.Close();
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+                using (StreamWriter writer = File.AppendText(errorFilePath))
+                {
+                    // Write timestamp and error message to the file
+                    writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
+                }
             }
         }
     }

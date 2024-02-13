@@ -1,9 +1,14 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SidexisConnector
@@ -13,21 +18,62 @@ namespace SidexisConnector
         private static ProgramData AppData { get; set; }
         
         private static WebSocketServer WsServer { get; set; }
+        private static TcpWebSocketServer TwsServer { get; set; }
 
         public static async Task Main(string[] args)
         {
             AppData = new ProgramData();
+            LogMessageToFile("SidexisConnector has started.");
             
             // Create WebSocket server and receive patient data
             try
             {
                 // Setup WebSocket server on a localhost port and start listening to it
-                HttpListener listener = new HttpListener();
-                listener.Prefixes.Add("http://localhost:37319/");
+                TcpListener server = new TcpListener(IPAddress.Parse("127.0.0.1"), 37319);
+                server.Start();
+
+                try
+                {
+                    LogMessageToFile($"Connecting to WebSocket server on {server.LocalEndpoint}...");
+                    
+                    // Listen for a connection from TidyClinic (up to 10 seconds before it times out)
+                    var clientTask = server.AcceptTcpClientAsync();
+                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+                    await Task.WhenAny(clientTask, timeoutTask);
+
+                    if (clientTask.IsCompleted)
+                    {
+                        // If connected, receive the patient data
+                        LogMessageToFile("Connection has been established.");
+                        TcpClient client = await clientTask;
+                        await HandleTcpConnection(client);
+                    }
+                    if (timeoutTask.IsCompleted)
+                    {
+                        throw new TimeoutException("WebSocket server timed out after 10 seconds.");
+                    }
+                }
+                catch (TimeoutException e)
+                {
+                    LogExceptionToFile(e);
+                }
+                finally
+                {
+                    // Stop listening to the localhost port with the WebSocket server
+                    server.Stop();
+                }
+                
+                /*HttpListener listener = new HttpListener();
+                listener.Prefixes.Add("http://127.0.0.1:37319/");
                 listener.Start();
 
                 try
                 {
+                    if (listener.IsListening)
+                    {
+                        LogMessageToFile($"Connecting to WebSocket server on {listener.Prefixes.ToList()[0]}...");
+                    }
+                    
                     // Listen for a connection from TidyClinic (up to 10 seconds before it times out)
                     var contextTask = listener.GetContextAsync();
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
@@ -36,17 +82,18 @@ namespace SidexisConnector
                     if (contextTask.IsCompleted)
                     {
                         // If connected, receive the patient data
+                        LogMessageToFile("Connection has been established.");
                         HttpListenerContext context = await contextTask;
                         await HandleWebSocketRequest(context);
                     }
-                    else
+                    if (timeoutTask.IsCompleted)
                     {
                         throw new TimeoutException("WebSocket server timed out after 10 seconds.");
                     }
                 }
                 catch (TimeoutException e)
                 {
-                    Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+                    LogExceptionToFile(e);
                 }
                 finally
                 {
@@ -55,12 +102,64 @@ namespace SidexisConnector
                     {
                         listener.Stop();
                     }
-                }
+                }*/
             }
 
             catch (HttpListenerException e)
             {
-                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
+                LogExceptionToFile(e);
+            }
+            
+            LogMessageToFile("SidexisConnector has stopped.");
+        }
+
+        private static async Task HandleTcpConnection(TcpClient client)
+        {
+            TwsServer = new TcpWebSocketServer(client);
+            NetworkStream stream = client.GetStream();
+            bool connect = true;
+            
+            while (connect) {
+                while (!stream.DataAvailable);
+                while (client.Available < 3); // match against "get"
+
+                var bytes = new byte[client.Available];
+                stream.Read(bytes, 0, bytes.Length);
+                var s = Encoding.UTF8.GetString(bytes);
+
+                try
+                {
+                    if (Regex.IsMatch(s, "^GET", RegexOptions.IgnoreCase))
+                    {
+                        // Upgrade connection to WebSocket
+                        TwsServer.HandleWebSocketHandshake(stream, s);
+                    }
+                    else
+                    {
+                        // Receive patient data from TidyClinic and send it to Sidexis
+                        var patientData = TwsServer.HandleWebSocketMessage(bytes, AppData.MessageFilePath);
+                        TwsServer.ProcessPatientData(AppData.Connector, patientData, AppData.SlidaPath);
+
+                        // Launch Sidexis
+                        TaskSwitch();
+                        
+                        // Send status back to TidyClinic, then close the connection
+                        TwsServer.SendPatientStatus(stream);
+
+                        // Bring Sidexis window to foreground so it processes the patient data
+                        BringToForeground();
+
+                        connect = false;
+                        client.Close();
+                    }
+                }
+                catch (Exception e)
+                {
+                    LogExceptionToFile(e);
+                    
+                    connect = false;
+                    client.Close();
+                }
             }
         }
 
@@ -68,22 +167,29 @@ namespace SidexisConnector
         {
             if (context.Request.IsWebSocketRequest)
             {
-                // Establish connection to TidyClinic
-                var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
+                try
+                {
+                    // Establish connection to TidyClinic
+                    var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
                 
-                // Receive patient data from TidyClinic and send it to Sidexis
-                WsServer = new WebSocketServer(ws);
-                await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
+                    // Receive patient data from TidyClinic and send it to Sidexis
+                    WsServer = new WebSocketServer(ws);
+                    await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
                 
-                // Launch Sidexis
-                TaskSwitch();
+                    // Launch Sidexis
+                    TaskSwitch();
                 
-                // Send status back to TidyClinic, then close the connection
-                await WsServer.SendStatusAsync();
-                await WsServer.CloseAsync();
+                    // Send status back to TidyClinic, then close the connection
+                    await WsServer.SendStatusAsync();
+                    await WsServer.CloseAsync();
 
-                // Bring Sidexis window to foreground so it processes the patient data
-                BringToForeground();
+                    // Bring Sidexis window to foreground so it processes the patient data
+                    BringToForeground();
+                }
+                catch (Exception e)
+                {
+                    LogExceptionToFile(e);
+                }
             }
             else
             {
@@ -97,12 +203,12 @@ namespace SidexisConnector
             try
             {
                 Process.Start(AppData.SidexisPath);
-                WsServer.PatientDataStatus = "Success: Sidexis launched and patient data sent.";
+                TwsServer.PatientDataStatus = "Success: Sidexis launched and patient data sent.";
             }
             catch (Exception e)
             {
-                Console.WriteLine($"A {e.GetType().Name} occurred: {e.Message}");
-                WsServer.PatientDataStatus = "Unable to open Sidexis.";
+                LogExceptionToFile(e);
+                TwsServer.PatientDataStatus = "Unable to open Sidexis.";
             }
         }
 
@@ -110,7 +216,7 @@ namespace SidexisConnector
         {
             // Bring Sidexis window to foreground so it processes the patient data
             Process[] processes = Process.GetProcessesByName("SIDEXIS");
-            Process targetProcess = processes.FirstOrDefault(process => process.MainWindowTitle.Contains("SIDEXIS XG"));
+            Process targetProcess = processes.FirstOrDefault(process => process.MainWindowTitle.Contains("SIDEXIS"));
 
             if (targetProcess != null)
             {
@@ -134,7 +240,7 @@ namespace SidexisConnector
                 if (windowProcessId == targetProcess.Id && WindowsApi.IsWindowVisible(hWnd))
                 {
                     string windowTitle = GetWindowTitle(hWnd);
-                    if (!string.IsNullOrEmpty(windowTitle) && !windowTitle.ToLower().Contains("sidexis xg"))
+                    if (!string.IsNullOrEmpty(windowTitle) && !windowTitle.ToLower().Contains("sidexis"))
                     {
                         WindowsApi.SendMessage(hWnd, 0x0010, IntPtr.Zero, IntPtr.Zero);
                     }
@@ -153,6 +259,26 @@ namespace SidexisConnector
                 return sb.ToString();
             }
             return null;
+        }
+        
+        private static void LogExceptionToFile(Exception ex)
+        {
+            // Create or append to the file
+            using (StreamWriter writer = File.AppendText(AppData.MessageFilePath))
+            {
+                // Write timestamp and error message to the file
+                writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
+            }
+        }
+        
+        private static void LogMessageToFile(string message)
+        {
+            // Create or append to the file
+            using (StreamWriter writer = File.AppendText(AppData.MessageFilePath))
+            {
+                // Write timestamp and error message to the file
+                writer.WriteLine($"{DateTime.Now}: {message}");
+            }
         }
     }
 
