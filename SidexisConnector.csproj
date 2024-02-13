@@ -52,7 +52,6 @@
     <Compile Include="SidexisConnectorModel.cs" />
     <Compile Include="SlidaInterface.cs" />
     <Compile Include="TcpWebSocketServer.cs" />
-    <Compile Include="WebSocketServer.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

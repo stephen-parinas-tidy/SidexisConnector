@@ -76,7 +76,6 @@ namespace SidexisConnector
                     decoded[i] = (byte)(bytes[offset + Convert.ToInt32(i.ToString())] ^ masks[i % 4]);
 
                 text = Encoding.UTF8.GetString(decoded);
-                LogMessageToFile(text, filePath);
             }
             else
             {
@@ -88,6 +87,7 @@ namespace SidexisConnector
 
         public void ProcessPatientData(SidexisConnectorModel connector, string patientData, string slidaFilePath)
         {
+            // Create tokens to send to Sidexis mail slot
             var patient = JsonConvert.DeserializeObject<SidexisPatient>(patientData);
             ProcessTokenN(connector, patient, slidaFilePath);
             ProcessTokenU(connector, patient, slidaFilePath);

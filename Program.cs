@@ -4,11 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SidexisConnector
@@ -16,8 +14,6 @@ namespace SidexisConnector
     internal class Program
     {
         private static ProgramData AppData { get; set; }
-        
-        private static WebSocketServer WsServer { get; set; }
         private static TcpWebSocketServer TwsServer { get; set; }
 
         public static async Task Main(string[] args)
@@ -25,10 +21,9 @@ namespace SidexisConnector
             AppData = new ProgramData();
             LogMessageToFile("SidexisConnector has started.");
             
-            // Create WebSocket server and receive patient data
+            // Setup WebSocket server on a localhost port and start listening to it
             try
             {
-                // Setup WebSocket server on a localhost port and start listening to it
                 TcpListener server = new TcpListener(IPAddress.Parse("127.0.0.1"), 37319);
                 server.Start();
 
@@ -62,47 +57,6 @@ namespace SidexisConnector
                     // Stop listening to the localhost port with the WebSocket server
                     server.Stop();
                 }
-                
-                /*HttpListener listener = new HttpListener();
-                listener.Prefixes.Add("http://127.0.0.1:37319/");
-                listener.Start();
-
-                try
-                {
-                    if (listener.IsListening)
-                    {
-                        LogMessageToFile($"Connecting to WebSocket server on {listener.Prefixes.ToList()[0]}...");
-                    }
-                    
-                    // Listen for a connection from TidyClinic (up to 10 seconds before it times out)
-                    var contextTask = listener.GetContextAsync();
-                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-                    await Task.WhenAny(contextTask, timeoutTask);
-
-                    if (contextTask.IsCompleted)
-                    {
-                        // If connected, receive the patient data
-                        LogMessageToFile("Connection has been established.");
-                        HttpListenerContext context = await contextTask;
-                        await HandleWebSocketRequest(context);
-                    }
-                    if (timeoutTask.IsCompleted)
-                    {
-                        throw new TimeoutException("WebSocket server timed out after 10 seconds.");
-                    }
-                }
-                catch (TimeoutException e)
-                {
-                    LogExceptionToFile(e);
-                }
-                finally
-                {
-                    // Stop listening to the localhost port with the WebSocket server
-                    if (listener.IsListening)
-                    {
-                        listener.Stop();
-                    }
-                }*/
             }
 
             catch (HttpListenerException e)
@@ -160,41 +114,6 @@ namespace SidexisConnector
                     connect = false;
                     client.Close();
                 }
-            }
-        }
-
-        private static async Task HandleWebSocketRequest(HttpListenerContext context)
-        {
-            if (context.Request.IsWebSocketRequest)
-            {
-                try
-                {
-                    // Establish connection to TidyClinic
-                    var ws = (await context.AcceptWebSocketAsync(null)).WebSocket;
-                
-                    // Receive patient data from TidyClinic and send it to Sidexis
-                    WsServer = new WebSocketServer(ws);
-                    await WsServer.ReceivePatientDataAsync(AppData.Connector, AppData.SlidaPath);
-                
-                    // Launch Sidexis
-                    TaskSwitch();
-                
-                    // Send status back to TidyClinic, then close the connection
-                    await WsServer.SendStatusAsync();
-                    await WsServer.CloseAsync();
-
-                    // Bring Sidexis window to foreground so it processes the patient data
-                    BringToForeground();
-                }
-                catch (Exception e)
-                {
-                    LogExceptionToFile(e);
-                }
-            }
-            else
-            {
-                context.Response.StatusCode = 400;
-                context.Response.Close();
             }
         }
         

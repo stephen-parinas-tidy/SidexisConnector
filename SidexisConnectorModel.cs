@@ -153,7 +153,7 @@ namespace SidexisConnector
             using (StreamWriter writer = File.AppendText(ErrorFilePath))
             {
                 // Write timestamp and error message to the file
-                writer.WriteLine($"{DateTime.Now}: Token {tokenType.ToString()[0]}: Patient {tokenData[0]} {tokenData[1]} {tokenData[2]}");
+                writer.WriteLine($"{DateTime.Now}: Token {tokenType.ToString()[0]}: {tokenData[3]} {tokenData[1]} {tokenData[0]} {tokenData[2]}");
             }
             
             ClearData();
