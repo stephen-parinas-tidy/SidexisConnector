@@ -45,7 +45,7 @@ namespace SidexisConnector
 
             if (msglen == 126)
             {
-                // bytes are reversed because websocket will print them in Big-Endian, whereas
+                // Bytes are reversed because WebSocket will print them in Big-Endian, whereas
                 // BitConverter will want them arranged in little-endian on windows
                 msglen = BitConverter.ToUInt16(new byte[] { bytes[3], bytes[2] }, 0);
                 offset = 4;

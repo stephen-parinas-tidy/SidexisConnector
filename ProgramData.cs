@@ -47,7 +47,7 @@ namespace SidexisConnector
             {
                 // First time registering app
                 RegisterUriScheme(customProtocol);
-                LogMessageToFile($"Registering '{customProtocol}://' URI");
+                LogMessageToFile($"Registering '{customProtocol}://' URI in {ProgramPath}");
                 Environment.Exit(0);
             }
             else
@@ -58,7 +58,7 @@ namespace SidexisConnector
                 if (!((string)subKeyValue).Contains(ProgramPath))
                 {
                     RegisterUriScheme(customProtocol);
-                    LogMessageToFile($"Registering new location for '{customProtocol}://' URI");
+                    LogMessageToFile($"Registering new location for '{customProtocol}://' URI in {ProgramPath}");
                     Environment.Exit(0);
                 }
                 subKey.Close();

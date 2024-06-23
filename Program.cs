@@ -127,7 +127,7 @@ namespace SidexisConnector
             catch (Exception e)
             {
                 LogExceptionToFile(e);
-                TwsServer.PatientDataStatus = "Unable to open Sidexis.";
+                TwsServer.PatientDataStatus = "Could not open Sidexis.";
             }
         }
 

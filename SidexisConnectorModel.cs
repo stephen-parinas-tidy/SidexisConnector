@@ -122,7 +122,7 @@ namespace SidexisConnector
                 case SlidaTokens.U:
                     if (DateOfBirthNew != DateOfBirth && (LastNameNew != LastName || FirstNameNew != FirstName))
                     {
-                        LogExceptionToFile("Cannot update patient data: DateOfBirth and Name updated simultaneously");
+                        LogExceptionToFile("Could not update patient data: DateOfBirth and Name updated simultaneously");
                     }
                     else
                     {
