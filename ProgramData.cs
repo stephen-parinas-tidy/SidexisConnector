@@ -44,8 +44,12 @@ namespace SidexisConnector
 
             try
             {
-                var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
-                if (regKey == null)
+                // Make sure there are no current user keys overriding the local machine key
+                var userRegKey = Registry.CurrentUser.OpenSubKey(customProtocol, false);
+                userRegKey?.DeleteSubKeyTree("SidexisConnector");
+                
+                var machineRegKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
+                if (machineRegKey == null)
                 {
                     // First time registering app
                     RegisterUriScheme(customProtocol);
@@ -55,7 +59,7 @@ namespace SidexisConnector
                 else
                 {
                     // If file location has changed, register new location
-                    var subKey = regKey.OpenSubKey("DefaultIcon");
+                    var subKey = machineRegKey.OpenSubKey("DefaultIcon", false);
                     var subKeyValue = subKey.GetValue("", "");
                     if (!((string)subKeyValue).Contains(ProgramPath))
                     {
@@ -67,7 +71,7 @@ namespace SidexisConnector
                     subKey.Close();
                 }
 
-                regKey.Close();
+                machineRegKey.Close();
             }
             catch (Exception e)
             {
