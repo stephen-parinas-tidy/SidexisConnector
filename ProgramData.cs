@@ -41,29 +41,39 @@ namespace SidexisConnector
             # else
                 string customProtocol = "SidexisConnector";
             # endif
-            
-            var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
-            if (regKey == null)
+
+            try
             {
-                // First time registering app
-                RegisterUriScheme(customProtocol);
-                LogMessageToFile($"Registering '{customProtocol}://' URI in {ProgramPath}");
-                Environment.Exit(0);
-            }
-            else
-            {
-                // If file location has changed, register new location
-                var subKey = regKey.OpenSubKey("DefaultIcon");
-                var subKeyValue = subKey.GetValue("", "");
-                if (!((string)subKeyValue).Contains(ProgramPath))
+                var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
+                if (regKey == null)
                 {
+                    // First time registering app
                     RegisterUriScheme(customProtocol);
-                    LogMessageToFile($"Registering new location for '{customProtocol}://' URI in {ProgramPath}");
+                    LogMessageToFile($"Registering '{customProtocol}://' URI in {ProgramPath}");
                     Environment.Exit(0);
                 }
-                subKey.Close();
+                else
+                {
+                    // If file location has changed, register new location
+                    var subKey = regKey.OpenSubKey("DefaultIcon");
+                    var subKeyValue = subKey.GetValue("", "");
+                    if (!((string)subKeyValue).Contains(ProgramPath))
+                    {
+                        RegisterUriScheme(customProtocol);
+                        LogMessageToFile($"Registering new location for '{customProtocol}://' URI in {ProgramPath}");
+                        Environment.Exit(0);
+                    }
+
+                    subKey.Close();
+                }
+
+                regKey.Close();
             }
-            regKey.Close();
+            catch (Exception e)
+            {
+                LogExceptionToFile(e);
+            }
+            
 
             // Retrieve Sidexis installation and Slida mail slot file path
             try
