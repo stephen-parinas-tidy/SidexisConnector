@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Security.Principal;
 using Microsoft.Win32;
 using NGOptMan;
 
@@ -44,12 +45,8 @@ namespace SidexisConnector
 
             try
             {
-                // Make sure there are no current user keys overriding the local machine key
-                var userRegKey = Registry.CurrentUser.OpenSubKey(customProtocol, false);
-                userRegKey?.DeleteSubKeyTree("SidexisConnector");
-                
-                var machineRegKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
-                if (machineRegKey == null)
+                var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
+                if (regKey == null)
                 {
                     // First time registering app
                     RegisterUriScheme(customProtocol);
@@ -59,7 +56,7 @@ namespace SidexisConnector
                 else
                 {
                     // If file location has changed, register new location
-                    var subKey = machineRegKey.OpenSubKey("DefaultIcon", false);
+                    var subKey = regKey.OpenSubKey("DefaultIcon", false);
                     var subKeyValue = subKey.GetValue("", "");
                     if (!((string)subKeyValue).Contains(ProgramPath))
                     {
@@ -71,7 +68,7 @@ namespace SidexisConnector
                     subKey.Close();
                 }
 
-                machineRegKey.Close();
+                regKey.Close();
             }
             catch (Exception e)
             {
@@ -103,45 +100,52 @@ namespace SidexisConnector
 
         private void RegisterUriScheme(string uriScheme)
         {
-            using (var key = Registry.LocalMachine.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme))
+            try
             {
-                key.SetValue("", "URL:"+ uriScheme + " Protocol");
-                key.SetValue("URL Protocol", "");
+                var key = Registry.LocalMachine.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme);
 
-                using (var defaultIcon = key.CreateSubKey("DefaultIcon"))
+                using (key)
                 {
-                    defaultIcon.SetValue("", ProgramPath + ",1");
-                    defaultIcon.Close();
-                }
+                    key?.SetValue("", "URL:" + uriScheme + " Protocol");
+                    key?.SetValue("URL Protocol", "");
 
-                using (var commandKey = key.CreateSubKey(@"shell\open\command"))
-                {
-                    commandKey.SetValue("", "\"" + ProgramPath + "\" \"%1\"");
-                    commandKey.Close();
+                    using (var defaultIcon = key?.CreateSubKey("DefaultIcon"))
+                    {
+                        defaultIcon?.SetValue("", ProgramPath + ",1");
+                        defaultIcon?.Close();
+                    }
+
+                    using (var commandKey = key?.CreateSubKey(@"shell\open\command"))
+                    {
+                        commandKey?.SetValue("", "\"" + ProgramPath + "\" \"%1\"");
+                        commandKey?.Close();
+                    }
+
+                    key?.Close();
                 }
-                
-                key.Close();
+            }
+            catch (Exception e)
+            {
+                LogExceptionToFile(e);
             }
         }
         
         private void LogExceptionToFile(Exception ex)
         {
             // Create or append to the file
-            using (StreamWriter writer = File.AppendText(MessageFilePath))
-            {
-                // Write timestamp and error message to the file
-                writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
-            }
+            using var writer = File.AppendText(MessageFilePath);
+            
+            // Write timestamp and error message to the file
+            writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
         }
         
         private void LogMessageToFile(string message)
         {
             // Create or append to the file
-            using (StreamWriter writer = File.AppendText(MessageFilePath))
-            {
-                // Write timestamp and message to the file
-                writer.WriteLine($"{DateTime.Now}: {message}");
-            }
+            using var writer = File.AppendText(MessageFilePath);
+            
+            // Write timestamp and message to the file
+            writer.WriteLine($"{DateTime.Now}: {message}");
         }
     }
 }

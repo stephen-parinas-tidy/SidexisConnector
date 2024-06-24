@@ -24,7 +24,7 @@ namespace SidexisConnector
             // Setup WebSocket server on a localhost port and start listening to it
             try
             {
-                TcpListener server = new TcpListener(IPAddress.Parse("127.0.0.1"), 37319);
+                var server = new TcpListener(IPAddress.Parse("127.0.0.1"), 37319);
                 server.Start();
 
                 try
@@ -40,7 +40,7 @@ namespace SidexisConnector
                     {
                         // If connected, receive the patient data
                         LogMessageToFile("Connection has been established.");
-                        TcpClient client = await clientTask;
+                        var client = await clientTask;
                         await HandleTcpConnection(client);
                     }
                     if (timeoutTask.IsCompleted)
@@ -67,18 +67,18 @@ namespace SidexisConnector
             LogMessageToFile("SidexisConnector has stopped.");
         }
 
-        private static async Task HandleTcpConnection(TcpClient client)
+        private static Task HandleTcpConnection(TcpClient client)
         {
             TwsServer = new TcpWebSocketServer(client);
-            NetworkStream stream = client.GetStream();
-            bool connect = true;
+            var stream = client.GetStream();
+            var connect = true;
             
             while (connect) {
                 while (!stream.DataAvailable);
                 while (client.Available < 3); // match against "get"
 
                 var bytes = new byte[client.Available];
-                stream.Read(bytes, 0, bytes.Length);
+                var read = stream.Read(bytes, 0, bytes.Length);
                 var s = Encoding.UTF8.GetString(bytes);
 
                 try
@@ -115,6 +115,8 @@ namespace SidexisConnector
                     client.Close();
                 }
             }
+
+            return Task.CompletedTask;
         }
         
         private static void TaskSwitch()
@@ -134,17 +136,19 @@ namespace SidexisConnector
         private static void BringToForeground()
         {
             // Bring Sidexis window to foreground so it processes the patient data
-            Process[] processes = Process.GetProcessesByName("SIDEXIS");
-            Process targetProcess = processes.FirstOrDefault(process => process.MainWindowTitle.Contains("SIDEXIS"));
+            var processes = Process.GetProcessesByName("SIDEXIS");
+            var targetProcess = processes.FirstOrDefault(process => process.MainWindowTitle.Contains("SIDEXIS"));
 
-            if (targetProcess != null)
+            if (targetProcess == null)
             {
-                CloseSecondaryWindow(targetProcess);
-                IntPtr mainWindowHandle = targetProcess.MainWindowHandle;
-                if (mainWindowHandle != IntPtr.Zero)
-                {
-                    WindowsApi.SetForegroundWindow(mainWindowHandle);
-                }
+                return;
+            }
+            
+            CloseSecondaryWindow(targetProcess);
+            var mainWindowHandle = targetProcess.MainWindowHandle;
+            if (mainWindowHandle != IntPtr.Zero)
+            {
+                WindowsApi.SetForegroundWindow(mainWindowHandle);
             }
         }
         
@@ -158,7 +162,7 @@ namespace SidexisConnector
 
                 if (windowProcessId == targetProcess.Id && WindowsApi.IsWindowVisible(hWnd))
                 {
-                    string windowTitle = GetWindowTitle(hWnd);
+                    var windowTitle = GetWindowTitle(hWnd);
                     if (!string.IsNullOrEmpty(windowTitle) && !windowTitle.ToLower().Contains("sidexis"))
                     {
                         WindowsApi.SendMessage(hWnd, 0x0010, IntPtr.Zero, IntPtr.Zero);
@@ -172,32 +176,26 @@ namespace SidexisConnector
         private static string GetWindowTitle(IntPtr hWnd)
         {
             const int nChars = 256;
-            StringBuilder sb = new StringBuilder(nChars);
-            if (WindowsApi.GetWindowText(hWnd, sb, nChars) > 0)
-            {
-                return sb.ToString();
-            }
-            return null;
+            var sb = new StringBuilder(nChars);
+            return WindowsApi.GetWindowText(hWnd, sb, nChars) > 0 ? sb.ToString() : null;
         }
         
         private static void LogExceptionToFile(Exception ex)
         {
             // Create or append to the file
-            using (StreamWriter writer = File.AppendText(AppData.MessageFilePath))
-            {
-                // Write timestamp and error message to the file
-                writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
-            }
+            using var writer = File.AppendText(AppData.MessageFilePath);
+            
+            // Write timestamp and error message to the file
+            writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
         }
         
         private static void LogMessageToFile(string message)
         {
             // Create or append to the file
-            using (StreamWriter writer = File.AppendText(AppData.MessageFilePath))
-            {
-                // Write timestamp and error message to the file
-                writer.WriteLine($"{DateTime.Now}: {message}");
-            }
+            using var writer = File.AppendText(AppData.MessageFilePath);
+            
+            // Write timestamp and error message to the file
+            writer.WriteLine($"{DateTime.Now}: {message}");
         }
     }
 
