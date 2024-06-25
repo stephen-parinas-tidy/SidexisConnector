@@ -45,6 +45,9 @@ namespace SidexisConnector
 
             try
             {
+                var userRegKey = Registry.CurrentUser.OpenSubKey(customProtocol, false);
+                userRegKey?.DeleteSubKeyTree("SidexisConnector");
+                
                 var regKey = Registry.ClassesRoot.OpenSubKey(customProtocol, false);
                 if (regKey == null)
                 {
@@ -100,6 +103,10 @@ namespace SidexisConnector
 
         private void RegisterUriScheme(string uriScheme)
         {
+            if (!IsAdministrator())
+            {
+                LogMessageToFile($"Could not register the '{uriScheme}://' URI. Please run this program as an administrator.");
+            }
             try
             {
                 var key = Registry.LocalMachine.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme);
@@ -128,6 +135,13 @@ namespace SidexisConnector
             {
                 LogExceptionToFile(e);
             }
+        }
+        
+        private static bool IsAdministrator()
+        {
+            var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
         
         private void LogExceptionToFile(Exception ex)
