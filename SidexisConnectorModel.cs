@@ -4,22 +4,30 @@ using System.IO;
 
 namespace SidexisConnector
 {
+    /// <summary>
+    /// Represents a SLIDA token builder used to construct and send patient-related messages to Sidexis.
+    /// </summary>
     public class SidexisConnectorModel
     {
+        /// <summary>
+        /// File path used for diagnostic/error logging.
+        /// </summary>
         public string ErrorFilePath { get; set; }
         
+        /// <summary>
+        /// Supported SLIDA token types for this integration.
+        /// </summary>
         public enum SlidaTokens
         {
             A, // Auto-select patient/image
             N, // New patient
             S, // Select patient
             U, // Update patient
-
-            // Image-related tokens to be added later on
         }
 
         #region patientIdentificationData
 
+        // Existing patient identity fields (used for selecting/updating/opening).
         public string LastName { get; set; }
         public string FirstName { get; set; }
         public string DateOfBirth { get; set; }
@@ -29,6 +37,7 @@ namespace SidexisConnector
 
         #region newPatientData
 
+        // "New" patient fields (used when creating a patient or providing new values during updates).
         public string LastNameNew { get; set; }
         public string FirstNameNew { get; set; }
         public string DateOfBirthNew { get; set; }
@@ -40,6 +49,7 @@ namespace SidexisConnector
 
         #region practiceData
 
+        // Practice and workstation context that Sidexis expects alongside patient tokens.
         public string StationName { get; set; }
         public string DateOfCall { get; set; }
         public string TimeOfCall { get; set; }
@@ -50,12 +60,15 @@ namespace SidexisConnector
 
         #region imageData
 
+        // Optional image context for tokens that support it.
         public string ImageNumber { get; set; }
 
         #endregion
 
         #region dataSizeLimits
 
+        // Field size constraints enforced before sending tokens to Sidexis.
+        // These are used by the Process* methods to truncate input.
         private const int MaxSizeName = 32;
         private const int MaxSizeDate = 10;
         private const int MaxSizeTime = 8;
@@ -73,6 +86,10 @@ namespace SidexisConnector
             ClearData();    // makes all attributes empty strings
         }
 
+        /// <summary>
+        /// Builds and sends a SLIDA token message to the specified mailslot file.
+        /// The data fields used depend on the provided token type.
+        /// </summary>
         public void SendData(string mailslotFilename, SlidaTokens tokenType)
         {
             // Add the required data to send to Sidexis
@@ -159,6 +176,9 @@ namespace SidexisConnector
             ClearData();
         }
 
+        /// <summary>
+        /// Resets all data fields to empty strings. Called after sending a token message.
+        /// </summary>
         private void ClearData()
         {
             LastName = string.Empty;
@@ -182,6 +202,9 @@ namespace SidexisConnector
             ImageNumber = string.Empty;
         }
         
+        /// <summary>
+        /// Appends an exception message to the configured error log file.
+        /// </summary>
         private void LogExceptionToFile(string message)
         {
             // Create or append to the file
@@ -194,23 +217,35 @@ namespace SidexisConnector
         
         # region processPatientData
         
-        private string ProcessName(string text)
+        /// <summary>
+        /// Applies name formatting rules and length constraints.
+        /// </summary>
+        private static string ProcessName(string text)
         {
             // Cannot have '@' symbol or leading/trailing spaces
             var textNew = text.Length > MaxSizeName ? text.Substring(0, MaxSizeName) : text;
             return textNew.TrimStart().TrimEnd().Replace("@", "");
         }
 
-        private string ProcessDate(string text)
+        /// <summary>
+        /// Applies date field length constraints.
+        /// </summary>
+        private static string ProcessDate(string text)
         {
             return text.Length > MaxSizeDate ? text.Substring(0, MaxSizeDate) : text;
         }
 
-        private string ProcessTime(string text)
+        /// <summary>
+        /// Applies time field length constraints.
+        /// </summary>
+        private static string ProcessTime(string text)
         {
             return text.Length > MaxSizeTime ? text.Substring(0, MaxSizeTime) : text;
         }
 
+        /// <summary>
+        /// Normalizes and validates the external patient index. Generates one if not provided.
+        /// </summary>
         private string ProcessIndex(string text)
         {
             var textNew = text.Length > MaxSizeIndex
@@ -219,26 +254,41 @@ namespace SidexisConnector
             return textNew == "" ? CreateExtCardIndexNo() : textNew;
         }
 
-        private string ProcessSex(string text)
+        /// <summary>
+        /// Applies sex field constraints.
+        /// </summary>
+        private static string ProcessSex(string text)
         {
             return text.Length > MaxSizeSex ? text.Substring(0, MaxSizeSex) : text;
         }
 
-        private string ProcessDentist(string text)
+        /// <summary>
+        /// Applies dentist field constraints.
+        /// </summary>
+        private static string ProcessDentist(string text)
         {
             return text.Length > MaxSizeDentist ? text.Substring(0, MaxSizeDentist) : text;
         }
 
-        private string ProcessStation(string text)
+        /// <summary>
+        /// Applies station field constraints.
+        /// </summary>
+        private static string ProcessStation(string text)
         {
             return text.Length > MaxSizeStation ? text.Substring(0, MaxSizeStation) : text;
         }
 
-        private string ProcessImageNumber(string text)
+        /// <summary>
+        /// Applies image number field constraints.
+        /// </summary>
+        private static string ProcessImageNumber(string text)
         {
             return text.Length > MaxSizeStation ? text.Substring(0, MaxSizeImageNumber) : text;
         }
 
+        /// <summary>
+        /// Generates an external card index using patient identity fields if none is provided.
+        /// </summary>
         private string CreateExtCardIndexNo()
         {
             // If external card index not provided,
@@ -248,6 +298,9 @@ namespace SidexisConnector
                 : $"{ProcessName(LastName)}{ProcessName(FirstName)}{ProcessName(DateOfBirth)}";
         }
 
+        /// <summary>
+        /// Builds a SLIDA sender address in UNC-style format.
+        /// </summary>
         public string CreateSenderAddress(string stationName, string appName)
         {
             // Neither field can be a wildcard '*'
@@ -258,6 +311,9 @@ namespace SidexisConnector
             return $"\\\\{stationName}\\{appName}";
         }
         
+        /// <summary>
+        /// Builds a SLIDA receiver address in UNC-style format.
+        /// </summary>
         public string CreateReceiverAddress(string stationName, string appName)
         {
             // Only up to one field can be a wildcard '*'

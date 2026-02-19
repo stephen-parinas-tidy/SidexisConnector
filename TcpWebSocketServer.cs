@@ -7,9 +7,20 @@ using Newtonsoft.Json;
 
 namespace SidexisConnector
 {
+    /// <summary>
+    /// Minimal WebSocket server implementation over a raw TCP client.
+    /// </summary>
     public class TcpWebSocketServer
     {
+        /// <summary>
+        /// Underlying TCP client for this connection.
+        /// </summary>
         private readonly TcpClient _client;
+        
+        /// <summary>
+        /// Status message that will be sent back to the WebSocket client.
+        /// This is typically set by the calling code based on whether patient processing succeeded.
+        /// </summary>
         public string PatientDataStatus { get; set; }
 
         public TcpWebSocketServer(TcpClient client)
@@ -18,26 +29,45 @@ namespace SidexisConnector
             PatientDataStatus = string.Empty;
         }
         
+        /// <summary>
+        /// Completes the WebSocket handshake by responding with
+        /// "101 Switching Protocols" and the computed Sec-WebSocket-Accept value.
+        /// </summary>
         public void HandleWebSocketHandshake(NetworkStream stream, string httpRequest)
         {
+            // Extract the Sec-WebSocket-Key header from the client request.
             string swk = Regex.Match(httpRequest, "Sec-WebSocket-Key: (.*)").Groups[1].Value.Trim();
+            
+            // Append the WebSocket protocol GUID and compute SHA1 hash.
             string swka = swk + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
             byte[] swkaSha1 = System.Security.Cryptography.SHA1.Create().ComputeHash(Encoding.UTF8.GetBytes(swka));
             string swkaSha1Base64 = Convert.ToBase64String(swkaSha1);
 
+            // Send the HTTP upgrade response to establish the WebSocket connection.
             byte[] response = Encoding.UTF8.GetBytes(
                 "HTTP/1.1 101 Switching Protocols\r\n" +
                 "Connection: Upgrade\r\n" +
                 "Upgrade: websocket\r\n" +
                 "Sec-WebSocket-Accept: " + swkaSha1Base64 + "\r\n\r\n");
+            
             stream.Write(response, 0, response.Length);
         }
 
+        /// <summary>
+        /// Decodes an incoming WebSocket frame and extracts the UTF-8 text payload.
+        /// Expected to receive masked text frames from a browser client.
+        /// </summary>
         public string HandleWebSocketMessage(byte[] bytes, string filePath)
         {
+            // FIN bit (currently not used for fragmentation handling).
             bool fin = (bytes[0] & 0b10000000) != 0;
-            bool mask = (bytes[1] & 0b10000000) != 0; // must be true, "All messages from the client to the server have this bit set"
-            int opcode = bytes[0] & 0b00001111; // expecting 1 - text message
+            
+            // All client-to-server WebSocket frames must be masked.
+            bool mask = (bytes[1] & 0b10000000) != 0;
+            
+            // Opcode 1 indicates a text frame.
+            int opcode = bytes[0] & 0b00001111;
+            
             int offset = 2;
             ulong msglen = bytes[1] & (ulong)0b01111111;
 
@@ -45,16 +75,13 @@ namespace SidexisConnector
 
             if (msglen == 126)
             {
-                // Bytes are reversed because WebSocket will print them in Big-Endian, whereas
-                // BitConverter will want them arranged in little-endian on windows
+                // Extended 16-bit payload length (big-endian).
                 msglen = BitConverter.ToUInt16(new byte[] { bytes[3], bytes[2] }, 0);
                 offset = 4;
             }
             else if (msglen == 127)
             {
-                // To test the below code, we need to manually buffer larger messages — since the NIC's autobuffering
-                // may be too latency-friendly for this code to run (that is, we may have only some of the bytes in this
-                // websocket frame available through client.Available).
+                // Extended 64-bit payload length (big-endian).
                 msglen = BitConverter.ToUInt64(
                     new byte[] { bytes[9], bytes[8], bytes[7], bytes[6], bytes[5], bytes[4], bytes[3], bytes[2] },
                     0);
@@ -67,11 +94,13 @@ namespace SidexisConnector
             }
             else if (mask)
             {
+                // Read the 4-byte masking key.
                 byte[] decoded = new byte[msglen];
                 byte[] masks = new byte[4]
                     { bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3] };
                 offset += 4;
 
+                // Unmask payload (XOR with rotating mask key).
                 for (ulong i = 0; i < msglen; ++i)
                     decoded[i] = (byte)(bytes[offset + Convert.ToInt32(i.ToString())] ^ masks[i % 4]);
 
@@ -85,18 +114,32 @@ namespace SidexisConnector
             return text;
         }
 
+        /// <summary>
+        /// Deserializes patient JSON and sends the required SLIDA token messages to create, update, and open the patient in Sidexis.
+        /// </summary>
         public void ProcessPatientData(SidexisConnectorModel connector, string patientData, string slidaFilePath)
         {
             // Create tokens to send to Sidexis mail slot
             var patient = JsonConvert.DeserializeObject<SidexisPatient>(patientData);
+            
+            // Token N – create patient
             ProcessTokenN(connector, patient, slidaFilePath);
+            
+            // Token U – update patient
             ProcessTokenU(connector, patient, slidaFilePath);
+            
+            // Token A – auto-select/open patient
             ProcessTokenA(connector, patient, slidaFilePath);
         }
         
+        /// <summary>
+        /// Token N - create a new patient in Sidexis.
+        /// </summary>
+        /// <param name="connector"></param>
+        /// <param name="patient"></param>
+        /// <param name="slidaFilePath"></param>
         private static void ProcessTokenN(SidexisConnectorModel connector, SidexisPatient patient, string slidaFilePath)
         {
-            // Create new patient
             connector.LastNameNew = patient.LastName;
             connector.FirstNameNew = patient.FirstName;
             connector.DateOfBirthNew = patient.DateOfBirth;
@@ -108,9 +151,14 @@ namespace SidexisConnector
             connector.SendData(slidaFilePath, SidexisConnectorModel.SlidaTokens.N);
         }
 
+        /// <summary>
+        /// Token U - update existing patient data in Sidexis.
+        /// </summary>
+        /// <param name="connector"></param>
+        /// <param name="patient"></param>
+        /// <param name="slidaFilePath"></param>
         private static void ProcessTokenU(SidexisConnectorModel connector, SidexisPatient patient, string slidaFilePath)
         {
-            // Update patient data
             connector.LastName = patient.LastName;
             connector.FirstName = patient.FirstName;
             connector.DateOfBirth = patient.DateOfBirth;
@@ -126,9 +174,14 @@ namespace SidexisConnector
             connector.SendData(slidaFilePath, SidexisConnectorModel.SlidaTokens.U);
         }
         
+        /// <summary>
+        /// Token A - auto-select/open patient in Sidexis.
+        /// </summary>
+        /// <param name="connector"></param>
+        /// <param name="patient"></param>
+        /// <param name="slidaFilePath"></param>
         private static void ProcessTokenA(SidexisConnectorModel connector, SidexisPatient patient, string slidaFilePath)
         {
-            // Open patient in Sidexis
             connector.LastName = patient.LastName;
             connector.FirstName = patient.FirstName;
             connector.DateOfBirth = patient.DateOfBirth;
@@ -142,6 +195,9 @@ namespace SidexisConnector
             connector.SendData(slidaFilePath, SidexisConnectorModel.SlidaTokens.A);
         }
 
+        /// <summary>
+        /// Sends the current status message to the WebSocket client as a text frame and then closes the connection.
+        /// </summary>
         public void SendPatientStatus(NetworkStream stream)
         {
             byte[] status = Encoding.UTF8.GetBytes(PatientDataStatus);
@@ -158,6 +214,11 @@ namespace SidexisConnector
             _client.Close();
         }
         
+        /// <summary>
+        /// Appends diagnostic messages to a log file.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="messageFilePath"></param>
         private static void LogMessageToFile(string message, string messageFilePath)
         {
             // Create or append to the file
@@ -168,6 +229,9 @@ namespace SidexisConnector
         }
     }
     
+    /// <summary>
+    /// Data model representing patient information received from the WebSocket client.
+    /// </summary>
     public class SidexisPatient
     {
         public string LastName { get; set; }

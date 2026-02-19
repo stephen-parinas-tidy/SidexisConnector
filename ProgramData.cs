@@ -6,13 +6,34 @@ using NGOptMan;
 
 namespace SidexisConnector
 {
+    /// <summary>
+    /// Holds runtime configuration and environment-specific data required for the Sidexis connector to function.
+    /// </summary>
     public class ProgramData
     {
+        /// <summary>
+        /// Path to the current executable.
+        /// </summary>
         private string ProgramPath { get; set; }
+        
+        /// <summary>
+        /// Full path to the Sidexis installation.
+        /// </summary>
         public string SidexisPath { get; set; }
+        
+        /// <summary>
+        /// Path to the SLIDA mailslot file.
+        /// </summary>
         public string SlidaPath { get; set; }
+        
+        /// <summary>
+        /// Path to the file used for diagnostic/error logging.
+        /// </summary>
         public string MessageFilePath { get; set; }
 
+        /// <summary>
+        /// Connector model used to build and send SLIDA tokens.
+        /// </summary>
         public SidexisConnectorModel Connector { get; set; }
 
         public ProgramData()
@@ -23,9 +44,9 @@ namespace SidexisConnector
             ProgramPath = typeof(Program).Assembly.Location;
             MessageFilePath = Path.Combine(Path.GetDirectoryName(ProgramPath) ?? string.Empty, "TidySidexisConnector.txt");
             
+            // Ensure the error log file exists. If it doesn't exist, create it
             if (!File.Exists(MessageFilePath))
             {
-                // If the file doesn't exist, create it
                 File.Create(MessageFilePath).Close();
                 using (StreamWriter writer = File.AppendText(MessageFilePath))
                 {
@@ -34,6 +55,7 @@ namespace SidexisConnector
                 }
             }
             
+            // Initialise SLIDA connector model with log file path
             Connector = new SidexisConnectorModel(MessageFilePath);
 
             // Register custom URI scheme of application if it does not exist
@@ -43,9 +65,12 @@ namespace SidexisConnector
                 string customProtocol = "SidexisConnector";
             # endif
 
+            // Ensure custom URI scheme is registered and points to this executable
             try
             {
                 var userRegKey = Registry.CurrentUser.OpenSubKey("Software\\Classes", true);
+                
+                // Clean up any user-level registration
                 if (userRegKey != null)
                 {
                     userRegKey.DeleteSubKeyTree(customProtocol, false);
@@ -61,9 +86,11 @@ namespace SidexisConnector
                 }
                 else
                 {
-                    // If file location has changed, register new location
+                    // Validate existing registration points to correct executable
                     var subKey = regKey.OpenSubKey("DefaultIcon", false);
                     var subKeyValue = subKey.GetValue("", "");
+                    
+                    // Re-register if executable location changed
                     if (!((string)subKeyValue).Contains(ProgramPath))
                     {
                         RegisterUriScheme(customProtocol);
@@ -82,9 +109,10 @@ namespace SidexisConnector
             }
             
 
-            // Retrieve Sidexis installation and Slida mail slot file path
+            // Retrieve Sidexis installation and SLIDA configuration via COM
             try
             {
+                // SIDEXISNG.OptionsManager provides configuration values
                 var optMan = (IOptionsManager) Activator.CreateInstance(Type.GetTypeFromProgID("SIDEXISNG.OptionsManager"));
 
                 if (SidexisPath == string.Empty)
@@ -95,6 +123,7 @@ namespace SidexisConnector
 
                 if (SlidaPath == string.Empty)
                 {
+                    // SLIDA file path used to write token messages
                     SlidaPath = optMan.GetOption("Sifiledb.ini/FromStation0/File", "");
                 }
             }
@@ -104,14 +133,20 @@ namespace SidexisConnector
             }
         }
 
+        /// <summary>
+        /// Registers the custom URI scheme in the Windows Registry.
+        /// Enables browser to launch this application via: SidexisConnector://
+        /// </summary>
         private void RegisterUriScheme(string uriScheme)
         {
+            // Registry write requires administrator privileges
             if (!IsAdministrator())
             {
                 LogMessageToFile($"Could not register the '{uriScheme}://' URI. Please run this program as an administrator.");
                 Environment.Exit(0);
             }
             
+            // Register protocol under HKLM\Software\Classes
             try
             {
                 var key = Registry.LocalMachine.CreateSubKey("SOFTWARE\\Classes\\" + uriScheme);
@@ -121,12 +156,14 @@ namespace SidexisConnector
                     key?.SetValue("", "URL:" + uriScheme + " Protocol");
                     key?.SetValue("URL Protocol", "");
 
+                    // Set application icon reference
                     using (var defaultIcon = key?.CreateSubKey("DefaultIcon"))
                     {
                         defaultIcon?.SetValue("", ProgramPath + ",1");
                         defaultIcon?.Close();
                     }
 
+                    // Set command executed when URI is triggered
                     using (var commandKey = key?.CreateSubKey(@"shell\open\command"))
                     {
                         commandKey?.SetValue("", "\"" + ProgramPath + "\" \"%1\"");
@@ -142,6 +179,9 @@ namespace SidexisConnector
             }
         }
         
+        /// <summary>
+        /// Determines whether the current process is running with Administrator privileges.
+        /// </summary>
         private static bool IsAdministrator()
         {
             var identity = WindowsIdentity.GetCurrent();
@@ -149,6 +189,9 @@ namespace SidexisConnector
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
         
+        /// <summary>
+        /// Writes exception details to the connector log file.
+        /// </summary>
         private void LogExceptionToFile(Exception ex)
         {
             // Create or append to the file
@@ -158,6 +201,9 @@ namespace SidexisConnector
             writer.WriteLine($"{DateTime.Now}: {ex.GetType().Name} - {ex.Message}");
         }
         
+        /// <summary>
+        /// Writes informational messages to the connector log file.
+        /// </summary>
         private void LogMessageToFile(string message)
         {
             // Create or append to the file
