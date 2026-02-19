@@ -46,3 +46,7 @@ All actions and errors are logged to `TidySidexisConnector.txt` in the applicati
 - Restore NuGet packages before building.
 - Build the solution in Release mode for deployment.
 
+### Additional Documentation
+
+For detailed technical documentation regarding the Sidexis system integration, please refer to the official vendor documentation [here](https://www.dentsplysirona.com/en/lp/slida-partners/member-area.html).
+
